@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheduling Algorithms</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .process-container {
+            margin-bottom: 15px;
+        }
+        .algorithm-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scheduling Algorithms</h1>
+    <div id="process-input">
+        <div class="process-container">
+            <label>Process Name:</label>
+            <input type="text" id="processName">
+        </div>
+        <div class="process-container">
+            <label>Arrival Time:</label>
+            <input type="number" id="arrivalTime">
+        </div>
+        <div class="process-container">
+            <label>Service Time:</label>
+            <input type="number" id="serviceTime">
+        </div>
+        <div class="process-container">
+            <label>Priority Level:</label>
+            <input type="number" id="priorityLevel">
+        </div>
+        <button onclick="addProcess()">Add Process</button>
+    </div>
+    <h2>Processes</h2>
+    <table id="processTable" border="1">
+        <tr>
+            <th>Process Name</th>
+            <th>Arrival Time</th>
+            <th>Service Time</th>
+            <th>Priority Level</th>
+        </tr>
+    </table>
+    <div class="algorithm-container">
+        <h2>Select Algorithm</h2>
+        <input type="radio" id="fcfs" name="algorithm" value="FCFS">
+        <label for="fcfs">First-Come, First-Served (FCFS) Scheduling</label><br>
+        <input type="radio" id="rr" name="algorithm" value="RR">
+        <label for="rr">Round Robin(RR) Scheduling</label><br>
+        <input type="radio" id="spn" name="algorithm" value="SPN">
+        <label for="spn">Shortest-Job-Next (SJN) Scheduling</label><br>
+        <input type="radio" id="srt" name="algorithm" value="SRT">
+        <label for="srt">Shortest Remaining Time</label><br>
+        <input type="radio" id="priority" name="algorithm" value="Priority">
+        <label for="priority">Priority Scheduling</label><br>
+        <div id="quantum-container" style="display: none;">
+            <label>Quantum:</label>
+            <input type="number" id="quantum">
+        </div>
+        <button onclick="runAlgorithm()">Run</button>
+    </div>
+    <h2>Result</h2>
+    <pre id="result"></pre>
+
+    <script>
+        let processes = [];
+
+        function addProcess() {
+            const processName = document.getElementById('processName').value;
+            const arrivalTime = parseInt(document.getElementById('arrivalTime').value);
+            const serviceTime = parseInt(document.getElementById('serviceTime').value);
+            const priorityLevel = parseInt(document.getElementById('priorityLevel').value);
+
+            if (isNaN(arrivalTime) || isNaN(serviceTime) || arrivalTime < 0 || serviceTime < 0) {
+                alert("Arrival time and service time must be non-negative integers.");
+                return;
+            }
+
+            processes.push({
+                name: processName,
+                arrival: arrivalTime,
+                service: serviceTime,
+                priority: isNaN(priorityLevel) ? null : priorityLevel
+            });
+
+            const table = document.getElementById('processTable');
+            const row = table.insertRow();
+            row.insertCell(0).innerText = processName;
+            row.insertCell(1).innerText = arrivalTime;
+            row.insertCell(2).innerText = serviceTime;
+            row.insertCell(3).innerText = isNaN(priorityLevel) ? '' : priorityLevel;
+
+            // Clear input fields
+            document.getElementById('processName').value = '';
+            document.getElementById('arrivalTime').value = '';
+            document.getElementById('serviceTime').value = '';
+            document.getElementById('priorityLevel').value = '';
+        }
+       function handleQuantumVisibility() {
+            const quantumContainer = document.getElementById('quantum-container');
+            const rrRadio = document.getElementById('rr');
+
+            // Show quantum input if RR is selected, otherwise hide it
+            quantumContainer.style.display = rrRadio.checked ? 'block' : 'none';
+        }
+        const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
+        algorithmRadios.forEach(radio => {
+            radio.addEventListener('change', handleQuantumVisibility);
+        });
+        
+        function runAlgorithm() {
+            const selectedAlgorithm = document.querySelector('input[name="algorithm"]:checked');
+            if (!selectedAlgorithm) {
+                alert("Please select an algorithm.");
+                return;
+            }
+
+            const algorithm = selectedAlgorithm.value;
+            const quantum = document.getElementById('quantum').value;
+            const resultElement = document.getElementById('result');
+
+            if ((algorithm === 'RR' || algorithm === 'Priority') && quantum === '') {
+                alert("Please enter the quantum value.");
+                return;
+            }
+
+            if (processes.length === 0) {
+                alert("Please add at least one process.");
+                return;
+            }
+
+            // Clear previous result
+            resultElement.innerHTML = '';
+
+            // Run the selected algorithm
+            switch (algorithm) {
+                case 'FCFS':
+                    resultElement.innerText = runFCFS(processes);
+                    break;
+                case 'RR':
+                    resultElement.innerText = runRoundRobin(processes, parseInt(quantum));
+                    break;
+                case 'SPN':
+                    resultElement.innerText = runSPN(processes);
+                    break;
+                case 'SRT':
+                    resultElement.innerText = runSRT(processes);
+                    break;
+                case 'Priority':
+                    resultElement.innerText = runPriority(processes);
+                    break;
+                default:
+                    resultElement.innerText = 'Algorithm not implemented.';
+            }
+        }
+
+        // Function for Priority Scheduling
+        function runPriority(processes) {
+            processes.sort((a, b) => a.priority - b.priority);
+            let result = 'Process Timeline:\n\n';
+            let time = 0;
+            processes.forEach(process => {
+                if (time < process.arrival) {
+                    time = process.arrival;
+                }
+                result += `Time ${time}: ${process.name} starts\n`;
+                time += process.service;
+                result += `Time ${time}: ${process.name} ends\n\n`;
+            });
+            return result;
+        }
+         function runFCFS(processes) {
+            processes.sort((a, b) => a.arrival - b.arrival);
+            let time = 0;
+            let result = 'Process Timeline:\n\n';
+            processes.forEach(process => {
+                if (time < process.arrival) {
+                    time = process.arrival;
+                }
+                result += `Time ${time}: ${process.name} starts\n`;
+                time += process.service;
+                result += `Time ${time}: ${process.name} ends\n\n`;
+            });
+            return result;
+        }
+
+        function runRoundRobin(processes, quantum) {
+            let result = 'Process Timeline:\n\n';
+            let remainingTimes = processes.map(process => process.service);
+            let currentTime = 0;
+            let allCompleted = false;
+            while (!allCompleted) {
+                allCompleted = true;
+                processes.forEach((process, index) => {
+                    if (remainingTimes[index] > 0) {
+                        allCompleted = false;
+                        const executionTime = Math.min(quantum, remainingTimes[index]);
+                        result += `Time ${currentTime}: ${process.name} starts\n`;
+                        currentTime += executionTime;
+                        remainingTimes[index] -= executionTime;
+                        result += `Time ${currentTime}: ${process.name} ends\n\n`;
+                    }
+                });
+            }
+            return result;
+        }
+
+        function runSPN(processes) {
+            processes.sort((a, b) => {
+                if (a.arrival !== b.arrival) {
+                    return a.arrival - b.arrival;
+                } else {
+                    return a.service - b.service;
+                }
+            });
+            let result = 'Process Timeline:\n\n';
+            let remainingTimes = processes.map(process => process.service);
+            let currentTime = 0;
+            let completed = 0;
+            while (completed !== processes.length) {
+                let shortestTime = Number.MAX_SAFE_INTEGER;
+                for (let i = 0; i < processes.length; i++) {
+                    if (processes[i].arrival <= currentTime && remainingTimes[i] < shortestTime && remainingTimes[i] > 0) {
+                        shortestTime = remainingTimes[i];
+                    }
+                }
+                if (shortestTime === Number.MAX_SAFE_INTEGER) {
+                    currentTime++;
+                } else {
+                    let shortestIndex = remainingTimes.indexOf(shortestTime);
+                    result += `Time ${currentTime}: ${processes[shortestIndex].name} starts\n`;
+                    currentTime += remainingTimes[shortestIndex];
+                    remainingTimes[shortestIndex] = 0;
+                    completed++;
+                    result += `Time ${currentTime}: ${processes[shortestIndex].name} ends\n\n`;
+                }
+            }
+            return result;
+        }
+
+        function runSRT(processes) {
+            let result = 'Process Timeline:\n\n';
+            let remainingTimes = processes.map(process => process.service);
+            let currentTime = 0;
+            let completed = 0;
+            while (completed !== processes.length) {
+                let shortestTime = Number.MAX_SAFE_INTEGER;
+                let shortestIndex = -1;
+                for (let i = 0; i < processes.length; i++) {
+                    if (processes[i].arrival <= currentTime && remainingTimes[i] < shortestTime && remainingTimes[i] > 0) {
+                        shortestIndex = i;
+                        shortestTime = remainingTimes[i];
+                    }
+                }
+                if (shortestIndex === -1) {
+                    currentTime++;
+                } else {
+                    result += `Time ${currentTime}: ${processes[shortestIndex].name} starts\n`;
+                    currentTime += 1; // Only increment when a process starts
+                    remainingTimes[shortestIndex]--;
+
+                    if (remainingTimes[shortestIndex] === 0) {
+                        completed++;
+                        result += `Time ${currentTime}: ${processes[shortestIndex].name} ends\n\n`;
+                    }
+                }
+            }
+
+            return result;
+        }
+    </script>
+</body>
+</html>
